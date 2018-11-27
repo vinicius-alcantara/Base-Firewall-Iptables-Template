@@ -1,4 +1,4 @@
-Developed by: Vinícius Alcântara <vinicius.redes2011@gmail.com> <(86)99450-3752>
+Developed by: Vinícius Alcântara <vinicius.redes2011@gmail.com>
 
 Template base de firewall iptables para gateways de redes coorporativas.
 
