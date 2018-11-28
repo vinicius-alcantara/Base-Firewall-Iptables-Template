@@ -99,6 +99,12 @@ iptables -A FORWARD -p udp -i $INT_LAN -o $INT_WAN -s $REDE_LAN -d 192.168.0.254
 ############ FTP PASSIVO ##############
 iptables -A FORWARD -i $INT_LAN -o $INT_WAN -s $REDE_LAN -d ftp.howtoonline.com.br -p tcp --dport 21 -j ACCEPT
 iptables -A FORWARD -i $INT_LAN -o $INT_WAN -s $REDE_LAN -d ftp.howtoonline.com.br -p tcp --sport 1024: -j ACCEPT
+
+#### REGRAS DE REDIRECIONAMENTO WAN/LAN (NAT) ####
+############## HTTP ##################
+set_variables
+iptables -t nat -A PREROUTING -i $INT_WAN -s 0/0 -d 192.168.0.200 -p tcp --dport 80 -j DNAT --to 10.0.0.100:80
+iptables -A FORWARD -i $INT_WAN -s 0/0 -d 10.0.0.100 -p tcp --dport 80 -j ACCEPT
 }
 
 function stop(){
