@@ -3,7 +3,7 @@ Developed by: Vinícius Alcântara | <vinicius.redes2011@gmail.com>
 Template base de firewall iptables para gateways de redes coorporativas.
 
 * Firewall desenvolvido em shell script;
-* Altamente restritivo com todas as políticas padrão definidas como DROP;
+* Restritivo com todas as políticas padrão definidas como DROP;
 * Liberação de tráfego sob demanda;
 * Log de tráfego e requisições não permitidas;
 * Hardening;
