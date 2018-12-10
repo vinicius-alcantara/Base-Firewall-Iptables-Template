@@ -35,30 +35,59 @@ echo "1" > /proc/sys/net/ipv4/ip_forward
 iptables -t nat -A POSTROUTING -o $INT_WAN -s $REDE_LAN -j MASQUERADE
 #######################################
 
-#### AUMENTA O LIMITE DE CONSULTAS DNS ####
-echo 1024 > /proc/sys/net/ipv4/neigh/default/gc_thresh1
-echo 2048 > /proc/sys/net/ipv4/neigh/default/gc_thresh2
-echo 4096 > /proc/sys/net/ipv4/neigh/default/gc_thresh3
-#######################################
-
 #### POLÍTICAS PADRÃO ####
 iptables -P INPUT DROP
 iptables -P OUTPUT DROP
 iptables -P FORWARD DROP
 #######################################
 
-#### REGRAS DE ESTADO DE CONEXÕES #####
-iptables -A INPUT -m state --state INVALID -j DROP
-iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-iptables -A OUTPUT -m state --state INVALID -j DROP
-iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-iptables -A FORWARD -m state --state INVALID -j DROP
-iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+######### PROTEÇÃO - DOS ATACK ##########
+echo "0" > /proc/sys/net/ipv4/tcp_syncookies
+echo "1" > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+echo "1" > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses
+#echo "1" > /proc/sys/net/ipv4/icmp_echo_ignore_all
+
+for i in /proc/sys/net/ipv4/conf/*
+do
+    #Impede quaisquer alterações maliciosas de rotas
+    	echo 0 > ${i}/accept_redirects
+        echo 0 > ${i}/accept_source_route
+        echo 0 > ${i}/secure_redirects
+    #Habilita proteção contra "ip spoofing"
+        echo 1 > ${i}/rp_filter
+    #"Logando" pacotes suspeitos/desconhecidos
+        echo 1 > ${i}/log_martians        
+done
+
+iptables -N syn_flood
+iptables -A syn_flood -m limit --limit 1/s --limit-burst 5  -j RETURN
+iptables -A syn_flood -j DROP
+iptables -A INPUT -p tcp --syn -j syn_flood
+
+#######################################
+
+#### AUMENTA O LIMITE DE CONSULTAS DNS ####
+echo 1024 > /proc/sys/net/ipv4/neigh/default/gc_thresh1
+echo 2048 > /proc/sys/net/ipv4/neigh/default/gc_thresh2
+echo 4096 > /proc/sys/net/ipv4/neigh/default/gc_thresh3
+#######################################
 
 #### REGRAS DE LOOPBACK ####
 iptables -A INPUT -i lo -j ACCEPT
 iptables -A OUTPUT -o lo -j ACCEPT
 #######################################
+
+#### REGRAS DE ESTADO DE CONEXÕES #####
+iptables -A INPUT -m state --state INVALID -j LOG --log-prefix "INVALID-INPUT " --log-ip-options --log-tcp-options --log-tcp-sequence --log-level 4  
+iptables -A INPUT -m state --state INVALID -j DROP
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A OUTPUT -m state --state INVALID -j LOG --log-prefix "INVALID-OUTPUT " --log-ip-options --log-tcp-options --log-tcp-sequence --log-level 4
+iptables -A OUTPUT -m state --state INVALID -j DROP
+iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A FORWARD -m state --state INVALID -j LOG --log-prefix "INVALID-FORWARD " --log-ip-options --log-tcp-options --log-tcp-sequence --log-level 4
+iptables -A FORWARD -m state --state INVALID -j DROP
+iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -t nat -A PREROUTING -m state --state ESTABLISHED,RELATED -j ACCEPT
 
 #### REGRAS DE ENTRADA/SAÍDA NO FIREWALL (FILTER) #####
 ################ SSH ##################
@@ -66,7 +95,7 @@ iptables -A INPUT -i $INT_WAN -s 192.168.0.0/24 -p tcp --dport 22 -j ACCEPT
 iptables -A INPUT -i $INT_LAN -s $REDE_LAN -p tcp --dport 22 -j ACCEPT
 #######################################
 ############### ICMP ##################
-iptables -A INPUT -i $INT_WAN -s 192.168.0.0/24 -d 192.168.0.200 -p icmp -m limit --limit 1/s -j ACCEPT
+#iptables -A INPUT -i $INT_WAN -s 192.168.0.104 -d 192.168.0.200 -p icmp -m limit --limit 1/s -j ACCEPT
 iptables -A INPUT -i $INT_LAN -s $REDE_LAN -d 10.0.0.1 -p icmp -m limit --limit 1/s -j ACCEPT
 iptables -A OUTPUT -p icmp -m limit --limit 1/s -j ACCEPT
 #######################################
@@ -111,6 +140,7 @@ function stop(){
 clean_tables
 set_variables
 iptables -t nat -A POSTROUTING -o $INT_WAN -s $REDE_LAN -j MASQUERADE
+iptables -X syn_flood
 iptables -P INPUT ACCEPT
 iptables -P OUTPUT ACCEPT
 iptables -P FORWARD ACCEPT
